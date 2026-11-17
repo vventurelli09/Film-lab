@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body { background: #0b1220; color: #e5e9f0; }
+body { padding-bottom: env(safe-area-inset-bottom); -webkit-tap-highlight-color: transparent; }
+
+@layer components {
+  .card { @apply rounded-2xl border border-line bg-panel p-4; }
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 font-semibold text-white active:scale-[.98] disabled:opacity-50; }
+  .btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-xl border border-line px-4 py-3 font-medium text-slate-200 active:scale-[.98] disabled:opacity-50; }
+  .input { @apply w-full rounded-xl border border-line bg-ink px-3 py-3 text-base text-white placeholder:text-slate-500 focus:border-accent focus:outline-none; }
+  .label { @apply mb-1 block text-sm font-medium text-slate-300; }
+  .chip { @apply rounded-full border border-line px-3 py-2 text-sm; }
+  .chip-on { @apply border-accent bg-accent/15 text-accent; }
+}
+
+.md h2 { font-size: 1.05rem; font-weight: 700; margin: 1.1rem 0 .4rem; color: #fff; }
+.md h3 { font-weight: 600; margin: .8rem 0 .3rem; }
+.md p { margin: .4rem 0; line-height: 1.55; }
+.md ul, .md ol { margin: .4rem 0 .4rem 1.2rem; }
+.md ul { list-style: disc; }
+.md ol { list-style: decimal; }
+.md li { margin: .25rem 0; line-height: 1.5; }
+.md strong { color: #fff; }
