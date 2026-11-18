@@ -105,3 +105,23 @@ Never comment on an athlete's body or appearance beyond what affects mechanics.`
 export function textOf(msg: Anthropic.Message) {
   return msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('\n').trim();
 }
+
+/**
+ * Calls Claude and returns its text. Newer models think before answering and that
+ * thinking counts toward max_tokens, so the limit is generous. Never returns empty text.
+ */
+export async function ask(params: Omit<Anthropic.MessageCreateParamsNonStreaming, 'model' | 'max_tokens'>, maxTokens = 16000) {
+  const msg = await anthropic().messages.create({ model: MODEL, max_tokens: maxTokens, ...params });
+  const text = textOf(msg);
+  console.log('claude', { model: MODEL, stop: msg.stop_reason, blocks: msg.content.map((b) => b.type), usage: msg.usage });
+  if (!text) {
+    throw new Error(
+      msg.stop_reason === 'max_tokens'
+        ? 'The AI ran out of room before answering. Try again.'
+        : msg.stop_reason === 'refusal'
+          ? 'The AI declined to analyze this clip.'
+          : `The AI returned an empty answer (${msg.stop_reason}). Try again.`,
+    );
+  }
+  return text;
+}

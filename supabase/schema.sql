@@ -117,3 +117,9 @@ drop policy if exists film_own on storage.objects;
 create policy film_own on storage.objects for all
   using (bucket_id = 'film' and (storage.foldername(name))[1] = auth.uid()::text)
   with check (bucket_id = 'film' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- v2: player profile + analysis status fields
+alter table athletes add column if not exists number text;
+alter table athletes add column if not exists team text;
+alter table film_sessions add column if not exists error text;
+alter table film_sessions add column if not exists analysis_started_at timestamptz;

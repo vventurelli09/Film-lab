@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { anthropic, COACH_SYSTEM, countToday, getCtx, jsonError, MODEL, sessionContext, textOf } from '@/lib/server';
+import { ask, COACH_SYSTEM, countToday, getCtx, jsonError, sessionContext } from '@/lib/server';
 
-export const maxDuration = 90;
+export const maxDuration = 180;
 
 export async function POST(req: Request) {
   const ctx = await getCtx(req);
@@ -14,15 +14,13 @@ export async function POST(req: Request) {
     const { athletes, text } = await sessionContext(sb, sessionId);
     const [{ data: analysis }, { data: history }] = await Promise.all([
       sb.from('analyses').select('content').eq('session_id', sessionId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      sb.from('messages').select('role, content').eq('session_id', sessionId).order('created_at', { ascending: true }).limit(30),
+      sb.from('messages').select('role, content').eq('session_id', sessionId).neq('content', '').order('created_at', { ascending: true }).limit(30),
     ]);
-    if (!analysis) return jsonError('Run the analysis first.');
+    if (!analysis?.content) return jsonError('Run the breakdown first.');
     const who = athletes.find((a: any) => a.id === athleteId)?.name || (athletes.length > 1 ? 'the whole team' : athletes[0]?.name || 'the athlete');
     const chat = (history || []).map((m: any) => `${m.role}: ${m.content}`).join('\n');
 
-    const msg = await anthropic().messages.create({
-      model: MODEL,
-      max_tokens: 1500,
+    const raw = await ask({
       system: COACH_SYSTEM,
       messages: [
         {
@@ -37,12 +35,11 @@ Build a 2-week practice action plan for ${who} that targets the top fixes.
 ${instructions ? `The user asked: ${instructions}\n` : ''}
 Reply with ONLY JSON, no markdown, in this shape:
 {"title": "short plan name", "items": [{"title": "drill or habit", "detail": "how to do it and the cue to use", "dose": "e.g. 3x10 swings", "frequency": "e.g. 4x per week"}]}
-Use 3 to 6 items.`,
+Use 3 to 6 items. Keep titles under 40 characters, details under 250 characters.`,
         },
       ],
-    });
+    }, 8000);
 
-    const raw = textOf(msg);
     const json = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
     const { data, error } = await sb
       .from('plans')

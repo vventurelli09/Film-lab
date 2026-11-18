@@ -1,94 +1,66 @@
 'use client';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import AthleteForm from '@/components/AthleteForm';
+import { Avatar, Empty, Sheet } from '@/components/ui';
 import { sb } from '@/lib/supabase';
-import { SPORTS, sportLabel } from '@/lib/sports';
+import { sportLabel } from '@/lib/sports';
 
-const blank = { name: '', sport: 'softball', position: '', level: '', bats: '', throws: '', notes: '' };
+export default function Roster() {
+  const router = useRouter();
+  const [list, setList] = useState<any[] | null>(null);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+  const [adding, setAdding] = useState(false);
 
-export default function Athletes() {
-  const [list, setList] = useState<any[]>([]);
-  const [form, setForm] = useState<any>(blank);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
-  const [err, setErr] = useState('');
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get('add')) setAdding(true);
+    (async () => {
+      const [a, s] = await Promise.all([
+        sb().from('athletes').select('*').order('name'),
+        sb().from('film_sessions').select('athlete_ids'),
+      ]);
+      setList(a.data || []);
+      const c: Record<string, number> = {};
+      (s.data || []).forEach((x: any) => x.athlete_ids.forEach((id: string) => (c[id] = (c[id] || 0) + 1)));
+      setCounts(c);
+    })();
+  }, []);
 
-  const load = async () => {
-    const { data } = await sb().from('athletes').select('*').order('name');
-    setList(data || []);
-  };
-  useEffect(() => { load(); }, []);
-
-  const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
-  const bat = SPORTS.find((s) => s.id === form.sport)?.batSport;
-
-  async function save(e: React.FormEvent) {
-    e.preventDefault();
-    setErr('');
-    const row = { ...form };
-    delete row.id; delete row.owner_id; delete row.created_at;
-    const { error } = editing
-      ? await sb().from('athletes').update(row).eq('id', editing)
-      : await sb().from('athletes').insert(row);
-    if (error) return setErr(error.message);
-    setForm(blank); setEditing(null); setOpen(false); load();
-  }
-
-  async function remove(id: string) {
-    if (!confirm('Delete this athlete? Their coaching rules go too.')) return;
-    await sb().from('athletes').delete().eq('id', id);
-    load();
-  }
+  if (list === null) return <p className="text-slate-400">Loading…</p>;
+  const teams = Array.from(new Set(list.map((a) => a.team || ''))).sort();
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Athletes</h1>
-        {!open && <button className="btn-ghost py-2" onClick={() => { setForm(blank); setEditing(null); setOpen(true); }}>+ Add</button>}
+        <h1 className="text-2xl font-bold">Players</h1>
+        <button className="btn py-2" onClick={() => setAdding(true)}>+ Add</button>
       </div>
 
-      {open && (
-        <form onSubmit={save} className="card space-y-3">
-          <div><label className="label">Name</label><input className="input" value={form.name} onChange={set('name')} required /></div>
-          <div>
-            <label className="label">Sport</label>
-            <select className="input" value={form.sport} onChange={set('sport')}>
-              {SPORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className="label">Position</label><input className="input" value={form.position || ''} onChange={set('position')} placeholder="e.g. SS / P" /></div>
-            <div><label className="label">Level / age</label><input className="input" value={form.level || ''} onChange={set('level')} placeholder="e.g. 14U" /></div>
-          </div>
-          {bat && (
-            <div className="grid grid-cols-2 gap-3">
-              <div><label className="label">Bats</label><select className="input" value={form.bats || ''} onChange={set('bats')}><option value="">—</option><option>R</option><option>L</option><option>S</option></select></div>
-              <div><label className="label">Throws</label><select className="input" value={form.throws || ''} onChange={set('throws')}><option value="">—</option><option>R</option><option>L</option></select></div>
-            </div>
-          )}
-          <div><label className="label">Notes for the AI</label><textarea className="input" rows={3} value={form.notes || ''} onChange={set('notes')} placeholder="Goals, injuries to work around, what you're already fixing…" /></div>
-          {err && <p className="text-sm text-red-300">{err}</p>}
-          <div className="flex gap-2">
-            <button className="btn flex-1">{editing ? 'Save' : 'Add athlete'}</button>
-            <button type="button" className="btn-ghost" onClick={() => setOpen(false)}>Cancel</button>
-          </div>
-        </form>
-      )}
+      {list.length === 0 && <Empty title="No players yet" body="Add yourself, your kid, or your whole roster." />}
 
-      {list.length === 0 && !open && <p className="text-sm text-slate-500">Add yourself, your player, or your whole roster.</p>}
-      <div className="space-y-2">
-        {list.map((a) => (
-          <div key={a.id} className="card flex items-center justify-between">
-            <div>
-              <div className="font-medium">{a.name}</div>
-              <div className="text-xs text-slate-400">{[sportLabel(a.sport), a.position, a.level].filter(Boolean).join(' · ')}</div>
-            </div>
-            <div className="flex gap-3 text-sm">
-              <button className="text-slate-300" onClick={() => { setForm(a); setEditing(a.id); setOpen(true); window.scrollTo(0, 0); }}>Edit</button>
-              <button className="text-red-300" onClick={() => remove(a.id)}>Delete</button>
-            </div>
+      {teams.map((team) => (
+        <section key={team}>
+          {teams.length > 1 && <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">{team || 'No team'}</h2>}
+          <div className="overflow-hidden rounded-2xl border border-line bg-panel">
+            {list.filter((a) => (a.team || '') === team).map((a, i) => (
+              <Link key={a.id} href={`/athletes/${a.id}`} className={`flex items-center gap-3 px-4 py-3 ${i ? 'border-t border-line' : ''}`}>
+                <span className="w-7 text-center text-lg font-bold text-slate-400">{a.number || '–'}</span>
+                <Avatar name={a.name} size={40} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate font-semibold">{a.name}</div>
+                  <div className="truncate text-xs text-slate-400">{[a.position, sportLabel(a.sport), a.level].filter(Boolean).join(' · ')}</div>
+                </div>
+                <span className="text-xs text-slate-500">{counts[a.id] || 0} clips ›</span>
+              </Link>
+            ))}
           </div>
-        ))}
-      </div>
+        </section>
+      ))}
+
+      <Sheet open={adding} onClose={() => setAdding(false)} title="Add player">
+        <AthleteForm onSaved={(a) => router.push(`/athletes/${a.id}`)} />
+      </Sheet>
     </div>
   );
 }

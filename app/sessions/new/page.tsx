@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/components/AuthGate';
-import { api, sb } from '@/lib/supabase';
+import { sb } from '@/lib/supabase';
 import { extractFrames } from '@/lib/frames';
 import { defaultInterval, MAX_FRAMES, SESSION_TYPES, SPORTS } from '@/lib/sports';
 
@@ -40,9 +40,11 @@ export default function NewSession() {
   const frameCount = useMemo(() => Math.min(MAX_FRAMES, Math.floor((end - start) / interval) + 1), [start, end, interval]);
 
   useEffect(() => {
+    const want = new URLSearchParams(window.location.search).get('athlete');
     sb().from('athletes').select('*').order('name').then(({ data }) => {
       setAthletes(data || []);
-      if (data?.[0]) { setSport(data[0].sport); setPicked([data[0].id]); }
+      const first = data?.find((a) => a.id === want) || data?.[0];
+      if (first) { setSport(first.sport); setPicked([first.id]); }
     });
   }, []);
 
@@ -110,14 +112,12 @@ export default function NewSession() {
 
       await sb().from('film_sessions').update({ frame_paths: paths, frame_times: frames.map((f) => f.t), video_path, status: 'uploaded' }).eq('id', id);
 
-      setStatus('AI is watching your film (30–60 sec)…');
-      await api('/api/analyze', { sessionId: id });
-      router.push(`/sessions/${id}`);
+      router.push(`/sessions/${id}`); // the breakdown starts automatically there
     } catch (e: any) {
-      if (id) await sb().from('film_sessions').update({ status: 'error' }).eq('id', id);
+      if (id) await sb().from('film_sessions').update({ status: 'error', error: e.message }).eq('id', id);
       setErr(e.message || 'Something went wrong');
       setBusy(false);
-      if (id) setStatus('Saved, but analysis failed. You can retry from the session page.');
+      setStatus('');
     }
   }
 
@@ -125,14 +125,14 @@ export default function NewSession() {
     return (
       <div className="card space-y-3">
         <p>Add an athlete first so the AI knows who it&apos;s watching.</p>
-        <Link href="/athletes" className="btn w-full">Add athlete</Link>
+        <Link href="/athletes?add=1" className="btn w-full">Add player</Link>
       </div>
     );
   }
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold">New film</h1>
+      <h1 className="text-2xl font-bold">Upload film</h1>
 
       <section className="space-y-2">
         <label className="label">1. Sport</label>
@@ -201,7 +201,7 @@ export default function NewSession() {
 
       {err && <p className="text-sm text-red-300">{err}</p>}
       {status && <p className="text-sm text-slate-300">{status}</p>}
-      <button className="btn w-full" disabled={busy || !file} onClick={submit}>{busy ? 'Working…' : 'Analyze film'}</button>
+      <button className="btn w-full" disabled={busy || !file} onClick={submit}>{busy ? status || 'Working…' : 'Upload & analyze'}</button>
     </div>
   );
 }

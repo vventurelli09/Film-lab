@@ -63,20 +63,23 @@ function Shell({ children, nav }: { children: React.ReactNode; nav?: boolean }) 
 
 function BottomNav() {
   const path = usePathname();
-  const items = [
-    { href: '/', label: 'Home' },
-    { href: '/sessions/new', label: '+ Film' },
-    { href: '/athletes', label: 'Athletes' },
-    { href: '/settings', label: 'Settings' },
-  ];
+  const item = (href: string, label: string, icon: string) => {
+    const on = href === '/' ? path === '/' : path.startsWith(href);
+    return (
+      <Link href={href} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${on ? 'text-accent' : 'text-slate-400'}`}>
+        <span className="text-lg leading-none">{icon}</span>
+        {label}
+      </Link>
+    );
+  };
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-10 border-t border-line bg-ink/95 pb-[env(safe-area-inset-bottom)] backdrop-blur">
-      <div className="mx-auto grid max-w-xl grid-cols-4">
-        {items.map((i) => (
-          <Link key={i.href} href={i.href} className={`py-3 text-center text-sm font-medium ${path === i.href ? 'text-accent' : 'text-slate-400'}`}>
-            {i.label}
-          </Link>
-        ))}
+      <div className="mx-auto grid max-w-xl grid-cols-5 items-center">
+        {item('/', 'Home', '⌂')}
+        {item('/athletes', 'Players', '◎')}
+        <Link href="/sessions/new" className="mx-auto -mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-3xl font-light text-white shadow-lg shadow-accent/30">+</Link>
+        {item('/plans', 'Plans', '✓')}
+        {item('/settings', 'Settings', '⚙')}
       </div>
     </nav>
   );
