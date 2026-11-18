@@ -36,10 +36,9 @@ export async function getCtx(req: Request): Promise<Ctx> {
   return { ok: true, sb, user: data.user };
 }
 
-/** Rows created today (UTC) by this user in a table, optionally filtered. */
+/** Rows this user created in the last 24 hours in a table, optionally filtered. */
 export async function countToday(sb: SupabaseClient, table: string, filter?: (q: any) => any) {
-  const since = new Date();
-  since.setUTCHours(0, 0, 0, 0);
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
   let q = sb.from(table).select('id', { count: 'exact', head: true }).gte('created_at', since.toISOString());
   if (filter) q = filter(q);
   const { count } = await q;

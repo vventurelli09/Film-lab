@@ -9,8 +9,12 @@ export async function POST(req: Request) {
   const { sb } = ctx;
   const { sessionId } = await req.json();
   try {
-    const limit = Number(process.env.DAILY_ANALYSIS_LIMIT || 10);
-    if ((await countToday(sb, 'analyses')) >= limit) return jsonError(`Daily analysis limit (${limit}) reached. Try again tomorrow.`, 429);
+    const limit = Number(process.env.DAILY_ANALYSIS_LIMIT || 30);
+    if ((await countToday(sb, 'analyses')) >= limit) {
+      const msg = `You've used all ${limit} breakdowns for the last 24 hours. Try again later.`;
+      await sb.from('film_sessions').update({ status: 'error', error: msg }).eq('id', sessionId);
+      return jsonError(msg, 429);
+    }
 
     const { session, text } = await sessionContext(sb, sessionId);
     if (!session.frame_paths?.length) return jsonError('No frames were saved for this session.');
@@ -53,13 +57,17 @@ No timestamps, no frame-by-frame narration, no filming advice.`;
       ],
     });
 
+    // If the user tapped Stop while we were working, don't overwrite their choice.
+    const { data: now } = await sb.from('film_sessions').select('status').eq('id', sessionId).single();
+    if (now?.status !== 'analyzing') return NextResponse.json({ stopped: true });
+
     const { error } = await sb.from('analyses').insert({ session_id: sessionId, content });
     if (error) throw error;
     await sb.from('film_sessions').update({ status: 'analyzed' }).eq('id', sessionId);
     return NextResponse.json({ ok: true });
   } catch (e: any) {
     console.error(e);
-    await sb.from('film_sessions').update({ status: 'error', error: e?.message || 'Analysis failed' }).eq('id', sessionId);
+    await sb.from('film_sessions').update({ status: 'error', error: e?.message || 'Analysis failed' }).eq('id', sessionId).eq('status', 'analyzing');
     return jsonError(e?.message || 'Analysis failed', 500);
   }
 }

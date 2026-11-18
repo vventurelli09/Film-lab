@@ -23,6 +23,7 @@ export default function SessionPage() {
   const [tab, setTab] = useState('breakdown');
   const [err, setErr] = useState('');
   const started = useRef(false);
+  const abort = useRef<AbortController | null>(null);
 
   const load = useCallback(async () => {
     const { data: session } = await sb().from('film_sessions').select('*').eq('id', id).single();
@@ -47,7 +48,16 @@ export default function SessionPage() {
     setErr('');
     setS((x: any) => ({ ...x, status: 'analyzing', analysis_started_at: new Date().toISOString() }));
     await sb().from('film_sessions').update({ status: 'analyzing', analysis_started_at: new Date().toISOString() }).eq('id', id);
-    try { await api('/api/analyze', { sessionId: id }); } catch (e: any) { setErr(e.message); }
+    abort.current = new AbortController();
+    try { await api('/api/analyze', { sessionId: id }, abort.current.signal); }
+    catch (e: any) { if (e.name !== 'AbortError') setErr(e.message); }
+    abort.current = null;
+    await load();
+  }, [id, load]);
+
+  const stopAnalysis = useCallback(async () => {
+    abort.current?.abort();
+    await sb().from('film_sessions').update({ status: 'error', error: 'You stopped this breakdown. Tap Run breakdown to try again.' }).eq('id', id);
     await load();
   }, [id, load]);
 
@@ -82,7 +92,7 @@ export default function SessionPage() {
   }, [s?.id]); // eslint-disable-line
 
   if (!s) return <p className="text-slate-400">Loading…</p>;
-  const stale = s.status === 'analyzing' && s.analysis_started_at && Date.now() - new Date(s.analysis_started_at).getTime() > 6 * 60 * 1000;
+  const stale = s.status === 'analyzing' && s.analysis_started_at && Date.now() - new Date(s.analysis_started_at).getTime() > 5.5 * 60 * 1000;
   const analyzing = s.status === 'analyzing' && !stale;
 
   return (
@@ -116,7 +126,7 @@ export default function SessionPage() {
         <div className="space-y-4">
           <FrameStrip frames={frames} interval={s.frame_interval} onOpen={setViewer} />
           {analyzing ? (
-            <Analyzing since={s.analysis_started_at} />
+            <Analyzing since={s.analysis_started_at} onStop={stopAnalysis} />
           ) : analysis ? (
             <>
               <Breakdown content={analysis.content} />
@@ -148,7 +158,7 @@ export default function SessionPage() {
   );
 }
 
-function Analyzing({ since }: { since?: string }) {
+function Analyzing({ since, onStop }: { since?: string; onStop: () => void }) {
   const [tick, setTick] = useState(0);
   useEffect(() => { const t = setInterval(() => setTick((x) => x + 1), 1000); return () => clearInterval(t); }, []);
   const secs = since ? Math.max(0, Math.round((Date.now() - new Date(since).getTime()) / 1000)) : tick;
@@ -163,7 +173,10 @@ function Analyzing({ since }: { since?: string }) {
           </li>
         ))}
       </ul>
-      <p className="text-xs text-slate-500">Usually 30-90 seconds. You can leave this screen; it keeps working.</p>
+      <p className="text-xs text-slate-500">
+        {secs > 150 ? 'This is taking longer than usual. You can stop it and try again.' : 'Usually 30-90 seconds. You can leave this screen; it keeps working.'}
+      </p>
+      <button className={`w-full ${secs > 150 ? 'btn' : 'btn-ghost'}`} onClick={onStop}>■ Stop breakdown</button>
     </div>
   );
 }
@@ -254,13 +267,16 @@ function Chat({ id, session, athletes, messages, reload, hasAnalysis }: any) {
   const [err, setErr] = useState('');
   const [teach, setTeach] = useState(false);
   const end = useRef<HTMLDivElement>(null);
+  const ctrl = useRef<AbortController | null>(null);
   useEffect(() => { end.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }); }, [messages.length, pending]);
 
   async function send(msg = text.trim()) {
     if (!msg || pending) return;
     setText(''); setPending(msg); setErr('');
-    try { await api('/api/chat', { sessionId: id, message: msg }); await reload(); }
-    catch (e: any) { setErr(e.message); setText(msg); }
+    ctrl.current = new AbortController();
+    try { await api('/api/chat', { sessionId: id, message: msg }, ctrl.current.signal); await reload(); }
+    catch (e: any) { if (e.name !== 'AbortError') setErr(e.message); setText(msg); }
+    ctrl.current = null;
     setPending('');
   }
 
@@ -289,7 +305,10 @@ function Chat({ id, session, athletes, messages, reload, hasAnalysis }: any) {
       {pending && (
         <>
           <div className="flex justify-end"><div className="max-w-[85%] rounded-2xl rounded-br-md bg-accent px-3.5 py-2.5 text-[15px] text-white">{pending}</div></div>
-          <div className="flex items-center gap-2 text-sm text-slate-400"><Spinner /> Coach is looking at the frames…</div>
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            <Spinner /> Coach is looking at the frames…
+            <button className="ml-auto rounded-lg border border-line px-2 py-1 text-xs" onClick={() => ctrl.current?.abort()}>■ Stop</button>
+          </div>
         </>
       )}
       {err && <p className="text-sm text-red-300">{err}</p>}

@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     if (!message?.trim()) return jsonError('Message is empty.');
     const limit = Number(process.env.DAILY_CHAT_LIMIT || 60);
     if ((await countToday(sb, 'messages', (q) => q.eq('role', 'assistant'))) >= limit) {
-      return jsonError(`Daily chat limit (${limit}) reached.`, 429);
+      return jsonError(`You've used all ${limit} chat replies for the last 24 hours.`, 429);
     }
 
     const { session, text } = await sessionContext(sb, sessionId);

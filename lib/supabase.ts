@@ -15,12 +15,13 @@ export function sb(): SupabaseClient {
 }
 
 /** POST to one of our API routes with the user's login token. */
-export async function api<T = any>(path: string, body: unknown): Promise<T> {
+export async function api<T = any>(path: string, body: unknown, signal?: AbortSignal): Promise<T> {
   const { data } = await sb().auth.getSession();
   const res = await fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${data.session?.access_token ?? ''}` },
     body: JSON.stringify(body),
+    signal,
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(json.error || `Request failed (${res.status})`);

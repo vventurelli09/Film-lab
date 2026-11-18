@@ -46,4 +46,4 @@ Upload sports film from your phone, get AI coaching analysis, chat with the AI a
 - Use chat to correct the AI, then **Save as coaching rule** for anything it should always remember.
 
 ## Optional settings (Vercel env vars)
-`ANTHROPIC_MODEL` (default `claude-sonnet-5-5`), `DAILY_ANALYSIS_LIMIT` (10), `DAILY_CHAT_LIMIT` (60), `NEXT_PUBLIC_MAX_VIDEO_MB` (50).
+`ANTHROPIC_MODEL` (default `claude-sonnet-5-5`), `DAILY_ANALYSIS_LIMIT` (30, rolling 24h), `DAILY_CHAT_LIMIT` (60), `NEXT_PUBLIC_MAX_VIDEO_MB` (50).
