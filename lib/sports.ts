@@ -14,10 +14,19 @@ export const SPORTS: Sport[] = [
 
 export const sportLabel = (id: string) => SPORTS.find((s) => s.id === id)?.label ?? id;
 
-/** Fast motions get 0.1s sampling; everything else 0.5s. */
-export function defaultInterval(focus: string) {
-  return /swing|hitting|pitch|throw|serv|attack|shoot|strik/i.test(focus) ? 0.1 : 0.5;
+/** Longest clip the AI will analyze in one go. */
+export const MAX_CLIP_SECONDS = 15;
+
+/**
+ * Spreads the frame budget across the selected clip: as dense as possible
+ * (0.1s at best) while staying within MAX_FRAMES.
+ */
+export function autoInterval(clipSeconds: number) {
+  const raw = clipSeconds / (MAX_FRAMES - 1);
+  return Math.max(0.1, Math.ceil(raw * 20) / 20);
 }
+export const frameCount = (clipSeconds: number, interval: number) =>
+  Math.min(MAX_FRAMES, Math.floor(clipSeconds / interval + 1e-6) + 1);
 
 export const SESSION_TYPES = [
   { id: 'individual', label: 'Individual' },

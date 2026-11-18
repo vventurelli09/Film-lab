@@ -21,23 +21,23 @@ export async function POST(req: Request) {
     const format = team
       ? `Write a team assessment in markdown using exactly these ## sections:
 ## Summary
-## Player by player (### subsection per visible player: strengths, top fix, cite frames)
+(2-3 sentences. If video quality limits the read, say so in one sentence.)
+## Player by player
+(### subsection per visible player: one strength, one top fix)
 ## Team patterns
 ## Practice priorities
-## What I couldn't see`
-      : `Write the breakdown in markdown using exactly these ## sections:
+(top 3 for the whole team)`
+      : `Write the breakdown in markdown using exactly these ## sections. Keep it tight and readable on a phone.
 ## Summary
-(2-3 sentences: overall grade of the movement and the single biggest takeaway)
+(2-3 sentences: how the movement looks overall and the single biggest takeaway. If video quality limits the read, say so in one sentence.)
 ## What's working
-(bullets, cite frames)
+(2-4 short bullets)
 ## Top fixes
-(numbered, most important first. For each: **what you see** with frame times, why it matters, and the one-line cue to use)
-## Phase by phase
-(short bullets for each phase you can see, e.g. stance, load, stride, launch, contact, finish, with frame times)
+(1-3 numbered fixes, most important first. For each: **what's happening**, why it matters, and a one-line cue in quotes.)
 ## Drills
-(2-4 drills that target the top fixes, with reps)
-## What I couldn't see
-(camera or angle limits, and how to film it next time)`;
+(2-3 drills that target the top fixes, each with reps)
+
+No timestamps, no frame-by-frame narration, no filming advice.`;
 
     const content = await ask({
       system: COACH_SYSTEM,

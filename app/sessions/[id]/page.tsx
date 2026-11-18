@@ -7,7 +7,7 @@ import { AutoTextarea, Avatar, Empty, Sheet, Spinner, Tabs } from '@/components/
 import { api, sb } from '@/lib/supabase';
 import { sportLabel } from '@/lib/sports';
 
-const STEPS = ['Loading frames', 'Checking stance and load', 'Tracking the swing path', 'Finding the top fixes', 'Picking drills'];
+const STEPS = ['Loading frames', 'Reading the setup', 'Following the motion', 'Finding the top fixes', 'Picking drills'];
 
 export default function SessionPage() {
   const { id } = useParams<{ id: string }>();
@@ -265,7 +265,7 @@ function Chat({ id, session, athletes, messages, reload, hasAnalysis }: any) {
   }
 
   const suggestions = hasAnalysis
-    ? ['What should we fix first?', 'Explain it like I’m a parent', 'Which frame shows the biggest issue?', 'I disagree with fix #1 because…']
+    ? ['What should we fix first?', 'Give me a frame-by-frame breakdown', 'Explain it like I’m a parent', 'I disagree with fix #1 because…']
     : ['What do you see in these frames?'];
 
   return (
