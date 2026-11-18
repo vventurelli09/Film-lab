@@ -96,7 +96,12 @@ function Login() {
     const { data, error } = mode === 'in'
       ? await auth.signInWithPassword({ email, password })
       : await auth.signUp({ email, password });
-    if (error) setMsg(error.message);
+    if (error) {
+      const network = /load failed|failed to fetch|network/i.test(error.message);
+      setMsg(network
+        ? `Can't reach Supabase at "${process.env.NEXT_PUBLIC_SUPABASE_URL}". In Vercel, NEXT_PUBLIC_SUPABASE_URL should look like https://abcd1234.supabase.co (no extra path or spaces), then Redeploy.`
+        : error.message);
+    }
     else if (mode === 'up' && !data.session) setMsg('Check your email to confirm your account, then sign in.');
     setBusy(false);
   }
